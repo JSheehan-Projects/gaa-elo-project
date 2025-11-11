@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import numpy as np
 
 @st.cache_data
 def load_summary_data(file_path, county_col_name): # <-- Add it here
@@ -67,7 +68,9 @@ def load_match_data(file_path, county_list):
     rename_map = {
         'Elo': 'Elo_T1', 'G': 'G_T1', 'P': 'P_T1', 'Sc': 'Sc_T1',
         'Elo.1': 'Elo_T2', 'G.1': 'G_T2', 'P.1': 'P_T2', 'Sc.1': 'Sc_T2',
-        'Home?': 'Home'
+        'Home?': 'Home',
+        'Result T1': 'ELO_Change_T1', 
+        'Result T2': 'ELO_Change_T2'
         }
     full_df = full_df.rename(columns=rename_map)
 
@@ -131,83 +134,185 @@ st.sidebar.title("GAA ELO Explorer 🏐🏑")
 selected_sport = st.sidebar.radio(
     "Select Sport",
     ("Football", "Hurling"),
-    horizontal=True
+    horizontal=True,
+    key='selected_sport'
 )
 
-analysis_type = st.sidebar.selectbox(
-    "Select Analysis Type",
-    ("End of Year Summary", "Detailed Match History")
-)
-
-# --- Dynamically assign data BASED ON BOTH selectors ---
-if selected_sport == "Football":
-    # Use the 'analysis_type' to pick which df to use
-    df = football_summary if analysis_type == "End of Year Summary" else football_detail
-    default_teams = ["Dublin", "Kerry"]
-else:
-    df = hurling_summary if analysis_type == "End of Year Summary" else hurling_detail
-    default_teams = ["Limerick", "Kilkenny", "Cork", "Tipperary"]
-    
-# --- Sidebar Filters ---
-all_teams = sorted(df['County'].unique())
-
-select_all = st.sidebar.checkbox("Select All Counties", value=False)
-
-if select_all:
-    # If checked, just use all teams
-    selected_teams = all_teams 
-    # We can also disable the multiselect to make it clear
-    st.sidebar.multiselect(
-        "Select Teams to Compare",
-        options=all_teams,
-        default=all_teams, # Show all as selected
-        disabled=True
-    )
-else:
-    # If not checked, show the normal multiselect
-    selected_teams = st.sidebar.multiselect(
-        "Select Teams to Compare",
-        options=all_teams,
-        default=default_teams # This uses your new default list
-    )
-
-st.sidebar.markdown("---") # Adds a nice separator line
+# --- Add Data Source Credit (moves to bottom of sidebar) ---
+st.sidebar.markdown("---")
 st.sidebar.markdown(
     """
     **Data Source Credit**
     
     All ELO data compiled and maintained by Gavan Reilly.
-
-    * [Football Data Sheet](https://docs.google.com/spreadsheets/d/1y5VpAqogmLXSVOBYKaGLKX2YOaAOZOJK2SYIN2SpgrA/edit?usp=sharing)
+    
     * [Hurling Data Sheet](https://docs.google.com/spreadsheets/d/1qMFKYJedRQJW0OaokjPuxGLaiKNvLybrBSQdvxSLr2E/edit?usp=sharing)
+    * [Football Data Sheet](https://docs.google.com/spreadsheets/d/1y5VpAqogmLXSVOBYKaGLKX2YOaAOZOJK2SYIN2SpgrA/edit?usp=sharing)
     """
 )
 
-# --- Main Page ---
-st.title(f"{selected_sport} - {analysis_type}")
-
-# --- Plot ---
-if not selected_teams:
-    st.warning("Please select at least one team from the sidebar.")
+# --- DYNAMIC DATA ASSIGNMENT ---
+# Assign data based on the sidebar selection
+if selected_sport == "Football":
+    df_summary = football_summary
+    df_detail = football_detail
+    default_summary_teams = ["Dublin", "Kerry"]
+    default_detail_teams = ["Dublin", "Kerry"] # Can be different
 else:
-    plot_df = df[df['County'].isin(selected_teams)]
+    df_summary = hurling_summary
+    df_detail = hurling_detail
+    default_summary_teams = ["Limerick", "Kilkenny", "Cork", "Tipperary"]
+    default_detail_teams = ["Limerick", "Kilkenny"] # Can be different
+
+# --- MAIN PAGE ---
+st.title(f"Intercounty {selected_sport} ELO Ratings")
+
+# --- CREATE THE TABS ---
+tab1, tab2 = st.tabs(["End of Year Comparison", "Single Season Deep-Dive"])
+
+
+# --- TAB 1: END OF YEAR SUMMARY ---
+with tab1:
+    st.header("Compare Team ELO at the End of Each Season")
     
-    # The x-axis needs to be dynamic
-    # For summary, it's "Year". For detail, it's "Date".
-    x_axis = "Year" if analysis_type == "End of Year Summary" else "Date"
+    all_teams_summary = sorted(df_summary['County'].unique())
     
-    # Sort the data
-    plot_df = plot_df.sort_values(by=x_axis) 
+    select_all_summary = st.checkbox("Select All Counties", value=False, key="select_all_summary")
     
-    fig = px.line(
-        plot_df,
-        x=x_axis,
-        y="ELO",
-        color="County",
-        title="ELO Rating Over Time"
-    )
+    if select_all_summary:
+        selected_teams_summary = all_teams_summary
+        st.multiselect(
+            "Select Teams to Compare",
+            options=all_teams_summary,
+            default=all_teams_summary,
+            disabled=True,
+            key="teams_summary_disabled"
+        )
+    else:
+        selected_teams_summary = st.multiselect(
+            "Select Teams to Compare",
+            options=all_teams_summary,
+            default=default_summary_teams,
+            key="teams_summary"
+        )
     
-    if analysis_type == "End of Year Summary":
-        fig.update_xaxes(type='category') # Keep years distinct
+    # Plotting logic for Tab 1
+    if not selected_teams_summary:
+        st.warning("Please select at least one team to compare.")
+    else:
+        plot_df_summary = df_summary[df_summary['County'].isin(selected_teams_summary)]
+        plot_df_summary = plot_df_summary.sort_values(by="Year")
+        
+        fig_summary = px.line(
+            plot_df_summary,
+            x="Year",
+            y="ELO",
+            color="County",
+            title="End-of-Year ELO Rating Over Time"
+        )
+        fig_summary.update_xaxes(type='category')
+        st.plotly_chart(fig_summary, use_container_width=True)
+
+
+# --- TAB 2: SINGLE SEASON DEEP-DIVE ---
+with tab2:
+    st.header("Track Team Progression During a Single Season")
     
-    st.plotly_chart(fig, use_container_width=True)
+    # --- NEW: SEASON SELECTOR ---
+    all_seasons = sorted(df_detail['Season'].unique(), reverse=True)
+    selected_season = st.selectbox("First, select a season:", all_seasons)
+    
+    st.markdown("---") # Separator
+    
+    # Filter the detail_df for *only* the selected season
+    season_df = df_detail[df_detail['Season'] == selected_season]
+    
+    # --- Team Filters for this season ---
+    all_teams_season = sorted(season_df['County'].unique())
+    select_all_season = st.checkbox("Select All Counties", value=False, key="select_all_season")
+    
+    if select_all_season:
+        selected_teams_season = all_teams_season
+        st.multiselect(
+            "Select Teams to Compare",
+            options=all_teams_season,
+            default=all_teams_season,
+            disabled=True,
+            key="teams_season_disabled"
+        )
+    else:
+        selected_teams_season = st.multiselect(
+            "Select Teams to Compare",
+            options=all_teams_season,
+            default=default_detail_teams,
+            key="teams_season"
+        )
+        
+    # --- Plotting logic for Tab 2 ---
+    if not selected_teams_season:
+        st.warning("Please select at least one team to compare.")
+    else:
+        # 1. Filter for selected teams (Same as before)
+        plot_df_season = season_df[season_df['County'].isin(selected_teams_season)]
+        
+        # --- 2. YOUR SOLUTION: Filter to *only* matches the team played in ---
+        plot_df_season = plot_df_season[
+            (plot_df_season['County'] == plot_df_season['Team 1']) |
+            (plot_df_season['County'] == plot_df_season['Team 2'])
+        ].copy() # .copy() avoids a harmless warning
+        
+        # --- 3. NEW: Create custom columns for the hover ---
+        # (This uses the numpy import we added)
+        
+        # Create 'Opponent' column
+        plot_df_season['Opponent'] = np.where(
+            plot_df_season['County'] == plot_df_season['Team 1'], # Condition
+            plot_df_season['Team 2'],                             # If true
+            plot_df_season['Team 1']                              # If false
+        )
+        
+        # Create 'Score_For' and 'Score_Against'
+        plot_df_season['Score_For'] = np.where(
+            plot_df_season['County'] == plot_df_season['Team 1'],
+            plot_df_season['Sc_T1'],
+            plot_df_season['Sc_T2']
+        )
+        plot_df_season['Score_Against'] = np.where(
+            plot_df_season['County'] == plot_df_season['Team 1'],
+            plot_df_season['Sc_T2'],
+            plot_df_season['Sc_T1']
+        )
+        
+        # Create 'ELO_Change'
+        plot_df_season['ELO_Change'] = np.where(
+            plot_df_season['County'] == plot_df_season['Team 1'],
+            plot_df_season['ELO_Change_T1'],
+            plot_df_season['ELO_Change_T2']
+        )
+
+        # Sort by Date (Same as before)
+        plot_df_season = plot_df_season.sort_values(by="Date")
+        
+        # --- 4. NEW: Update px.line() with hover_data ---
+        fig_season = px.line(
+            plot_df_season,
+            x="Date",
+            y="ELO",
+            color="County",
+            title=f"ELO Progression During {selected_season} Season",
+            hover_data={
+                "County": True,
+                "ELO": ":.0f", # Format ELO to a whole number
+                "Opponent": True,
+                "Score_For": True,
+                "Score_Against": True,
+                "ELO_Change": ":.1f", # Format ELO change to 1 decimal
+                "Grade": True, # The competition grade
+                "Date": "|%B %d, %Y" # Format the date nicely
+            }
+        )
+        
+        # This makes the line "step" after each match, which is more accurate
+        fig_season.update_traces(line_shape='hv') 
+        
+        st.plotly_chart(fig_season, use_container_width=True)
