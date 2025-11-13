@@ -138,6 +138,10 @@ selected_sport = st.sidebar.radio(
     key='selected_sport'
 )
 
+st.sidebar.markdown("---") # Adds the separator line
+st.sidebar.caption(
+    "Created by [Jack Sheehan](https://github.com/JSheehan-Projects/)."
+)
 # --- Add Data Source Credit (moves to bottom of sidebar) ---
 st.sidebar.markdown("---")
 st.sidebar.markdown(
