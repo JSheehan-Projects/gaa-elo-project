@@ -6,7 +6,7 @@ A web application for exploring and visualizing the ELO rating history of interc
 
 ## 🚀 Live Demo
 
-**(Link to your live Streamlit Cloud app will go here once you deploy it!)**
+https://gaa-elo-history.streamlit.app/
 
 ## Features
 
