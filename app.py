@@ -140,7 +140,10 @@ selected_sport = st.sidebar.radio(
 
 st.sidebar.markdown("---") # Adds the separator line
 st.sidebar.caption(
-    "Created by [Jack Sheehan](https://github.com/JSheehan-Projects/)."
+    """
+    Created by Jack Sheehan.
+    Link to [GitHub profile](https://github.com/JSheehan-Projects/).
+    """
 )
 # --- Add Data Source Credit (moves to bottom of sidebar) ---
 st.sidebar.markdown("---")
@@ -219,104 +222,151 @@ with tab1:
 
 
 # --- TAB 2: SINGLE SEASON DEEP-DIVE ---
+# --- TAB 2: SINGLE SEASON DEEP-DIVE ---
+# --- TAB 2: SINGLE SEASON DEEP-DIVE ---
 with tab2:
     st.header("Track Team Progression During a Single Season")
     
-    # --- NEW: SEASON SELECTOR ---
+    # --- Season Selector (Same as before) ---
     all_seasons = sorted(df_detail['Season'].unique(), reverse=True)
     selected_season = st.selectbox("First, select a season:", all_seasons)
     
-    st.markdown("---") # Separator
-    
     # Filter the detail_df for *only* the selected season
-    season_df = df_detail[df_detail['Season'] == selected_season]
+    season_df = df_detail[df_detail['Season'] == selected_season].copy()
     
-    # --- Team Filters for this season ---
-    all_teams_season = sorted(season_df['County'].unique())
-    select_all_season = st.checkbox("Select All Counties", value=False, key="select_all_season")
-    
-    if select_all_season:
-        selected_teams_season = all_teams_season
-        st.multiselect(
-            "Select Teams to Compare",
-            options=all_teams_season,
-            default=all_teams_season,
-            disabled=True,
-            key="teams_season_disabled"
-        )
+    # Check if we have data
+    if season_df.empty:
+        st.warning(f"No match data found for {selected_season}.")
     else:
-        selected_teams_season = st.multiselect(
-            "Select Teams to Compare",
-            options=all_teams_season,
-            default=default_detail_teams,
-            key="teams_season"
-        )
+        # --- Team-Specific Plot (This now comes FIRST) ---
+        st.subheader(f"Team-Specific Plot for {selected_season}")
         
-    # --- Plotting logic for Tab 2 ---
-    if not selected_teams_season:
-        st.warning("Please select at least one team to compare.")
-    else:
-        # 1. Filter for selected teams (Same as before)
-        plot_df_season = season_df[season_df['County'].isin(selected_teams_season)]
+        all_teams_season = sorted(season_df['County'].unique())
         
-        # --- 2. YOUR SOLUTION: Filter to *only* matches the team played in ---
-        plot_df_season = plot_df_season[
-            (plot_df_season['County'] == plot_df_season['Team 1']) |
-            (plot_df_season['County'] == plot_df_season['Team 2'])
-        ].copy() # .copy() avoids a harmless warning
-        
-        # --- 3. NEW: Create custom columns for the hover ---
-        # (This uses the numpy import we added)
-        
-        # Create 'Opponent' column
-        plot_df_season['Opponent'] = np.where(
-            plot_df_season['County'] == plot_df_season['Team 1'], # Condition
-            plot_df_season['Team 2'],                             # If true
-            plot_df_season['Team 1']                              # If false
-        )
-        
-        # Create 'Score_For' and 'Score_Against'
-        plot_df_season['Score_For'] = np.where(
-            plot_df_season['County'] == plot_df_season['Team 1'],
-            plot_df_season['Sc_T1'],
-            plot_df_season['Sc_T2']
-        )
-        plot_df_season['Score_Against'] = np.where(
-            plot_df_season['County'] == plot_df_season['Team 1'],
-            plot_df_season['Sc_T2'],
-            plot_df_season['Sc_T1']
-        )
-        
-        # Create 'ELO_Change'
-        plot_df_season['ELO_Change'] = np.where(
-            plot_df_season['County'] == plot_df_season['Team 1'],
-            plot_df_season['ELO_Change_T1'],
-            plot_df_season['ELO_Change_T2']
-        )
+        select_all_season = st.checkbox("Select All Counties", value=False, key="select_all_season")
 
-        # Sort by Date (Same as before)
-        plot_df_season = plot_df_season.sort_values(by="Date")
+        if select_all_season:
+            selected_teams_season = all_teams_season
+            st.multiselect(
+                "Select Teams to Compare",
+                options=all_teams_season,
+                default=all_teams_season,
+                disabled=True,
+                key="teams_season_disabled"
+            )
+        else:
+            selected_teams_season = st.multiselect(
+                "Select Teams to Compare",
+                options=all_teams_season,
+                default=default_detail_teams,
+                key="teams_season"
+            )
+            
+        if not selected_teams_season:
+            st.warning("Please select at least one team to compare.")
+        else:
+            # (Your existing plot logic... no changes needed here)
+            plot_df_season = season_df[season_df['County'].isin(selected_teams_season)]
+            plot_df_season = plot_df_season[
+                (plot_df_season['County'] == plot_df_season['Team 1']) |
+                (plot_df_season['County'] == plot_df_season['Team 2'])
+            ].copy()
+            
+            # (Your numpy .where() logic for Opponent, Score_For, etc. is all correct)
+            plot_df_season['Opponent'] = np.where(
+                plot_df_season['County'] == plot_df_season['Team 1'],
+                plot_df_season['Team 2'],
+                plot_df_season['Team 1']
+            )
+            plot_df_season['Score_For'] = np.where(
+                plot_df_season['County'] == plot_df_season['Team 1'],
+                plot_df_season['Sc_T1'],
+                plot_df_season['Sc_T2']
+            )
+            plot_df_season['Score_Against'] = np.where(
+                plot_df_season['County'] == plot_df_season['Team 1'],
+                plot_df_season['Sc_T2'],
+                plot_df_season['Sc_T1']
+            )
+            plot_df_season['ELO_Change'] = np.where(
+                plot_df_season['County'] == plot_df_season['Team 1'],
+                plot_df_season['ELO_Change_T1'],
+                plot_df_season['ELO_Change_T2']
+            )
+            plot_df_season = plot_df_season.sort_values(by="Date")
+            
+            fig_season = px.line(
+                plot_df_season,
+                x="Date",
+                y="ELO",
+                color="County",
+                title=f"ELO Progression During {selected_season} Season",
+                hover_data={
+                    "County": True,
+                    "ELO": ":.0f",
+                    "Opponent": True,
+                    "Score_For": True,
+                    "Score_Against": True,
+                    "ELO_Change": ":.1f",
+                    "Grade": True,
+                    "Date": "|%B %d, %Y"
+                }
+            )
+            fig_season.update_traces(line_shape='hv')
+            st.plotly_chart(fig_season, use_container_width=True)
+
         
-        # --- 4. NEW: Update px.line() with hover_data ---
-        fig_season = px.line(
-            plot_df_season,
-            x="Date",
-            y="ELO",
-            color="County",
-            title=f"ELO Progression During {selected_season} Season",
-            hover_data={
-                "County": True,
-                "ELO": ":.0f", # Format ELO to a whole number
-                "Opponent": True,
-                "Score_For": True,
-                "Score_Against": True,
-                "ELO_Change": ":.1f", # Format ELO change to 1 decimal
-                "Grade": True, # The competition grade
-                "Date": "|%B %d, %Y" # Format the date nicely
-            }
-        )
-        
-        # This makes the line "step" after each match, which is more accurate
-        fig_season.update_traces(line_shape='hv') 
-        
-        st.plotly_chart(fig_season, use_container_width=True)
+        # --- NEW LOCATION: TOP 5 SHOCKS OF THE SEASON ---
+        # (This section is now below the plot)
+        st.markdown("---") # Separator line
+        st.subheader(f"Top 5 Biggest Shocks of {selected_season}")
+
+        # 1. Get only the unique matches
+        match_cols = ['Date', 'Team 1', 'Team 2', 'G_T1', 'P_T1', 'G_T2', 'P_T2', 'ELO_Change_T1', 'Grade']
+        unique_matches_df = season_df[match_cols].drop_duplicates()
+
+        # --- NEW: Convert G/P columns to integer for clean formatting ---
+        g_p_cols = ['G_T1', 'P_T1', 'G_T2', 'P_T2']
+        unique_matches_df[g_p_cols] = unique_matches_df[g_p_cols].fillna(0).astype(int)
+
+        # 2. Calculate the 'Shock_Factor'
+        unique_matches_df['Shock_Factor'] = unique_matches_df['ELO_Change_T1'].abs()
+
+        # 3. Get the top 5
+        top_5_shocks = unique_matches_df.sort_values(by='Shock_Factor', ascending=False).head(5)
+
+        # 4. Display them
+        for i, (index, row) in enumerate(top_5_shocks.iterrows()):
+            
+            # --- UPDATED LOGIC for score strings ---
+            if row['ELO_Change_T1'] > 0: # Team 1 won
+                winner, loser = row['Team 1'], row['Team 2']
+                # Get winner's score
+                g_w, p_w = row['G_T1'], row['P_T1']
+                total_w = (g_w * 3) + p_w
+                # Get loser's score
+                g_l, p_l = row['G_T2'], row['P_T2']
+                total_l = (g_l * 3) + p_l
+                
+                elo_change = row['ELO_Change_T1']
+            else: # Team 2 won
+                winner, loser = row['Team 2'], row['Team 1']
+                # Get winner's score
+                g_w, p_w = row['G_T2'], row['P_T2']
+                total_w = (g_w * 3) + p_w
+                # Get loser's score
+                g_l, p_l = row['G_T1'], row['P_T1']
+                total_l = (g_l * 3) + p_l
+
+                elo_change = -row['ELO_Change_T1'] # Make the swing positive
+            
+            # Create the formatted score strings
+            winner_score = f"{g_w}-{p_w} ({total_w})"
+            loser_score = f"{g_l}-{p_l} ({total_l})"
+
+            # Display the metric and the formatted string
+            col1, col2 = st.columns([1, 4])
+            col1.metric(label=f"Rank {i+1}", value=f"+{elo_change:.1f}", help="ELO Swing")
+            
+            col2.markdown(f"**{winner}** {winner_score} beat **{loser}** {loser_score}")
+            col2.caption(f"**Competition:** {row['Grade']} | **Date:** {row['Date'].strftime('%B %d, %Y')}")
