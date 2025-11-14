@@ -117,16 +117,16 @@ def load_match_data(file_path, county_list):
 
 # --- Load both datasets --- ratings - Football.xlsx"
 
-football_summary = load_summary_data("data/🏐 GAA Elo ratings - Football.xlsx", county_col_name='Unnamed: 0')
-hurling_summary = load_summary_data("data/⚾ GAA Elo ratings - Hurling.xlsx", county_col_name='Team')
+#football_summary = load_summary_data("data/🏐 GAA Elo ratings - Football.xlsx", county_col_name='Unnamed: 0')
+#hurling_summary = load_summary_data("data/⚾ GAA Elo ratings - Hurling.xlsx", county_col_name='Team')
 
 # Get the unique county lists to pass to the next function
-football_counties = football_summary['County'].unique()
-hurling_counties = hurling_summary['County'].unique()
+#football_counties = football_summary['County'].unique()
+#hurling_counties = hurling_summary['County'].unique()
 
 # Load detailed match data
-football_detail = load_match_data("data/🏐 GAA Elo ratings - Football.xlsx", county_list=football_counties)
-hurling_detail = load_match_data("data/⚾ GAA Elo ratings - Hurling.xlsx", county_list=hurling_counties)
+#football_detail = load_match_data("data/🏐 GAA Elo ratings - Football.xlsx", county_list=football_counties)
+#hurling_detail = load_match_data("data/⚾ GAA Elo ratings - Hurling.xlsx", county_list=hurling_counties)
 
 # --- Sidebar ---
 st.sidebar.title("GAA ELO Explorer 🏐🏑")
@@ -160,16 +160,34 @@ st.sidebar.markdown(
 
 # --- DYNAMIC DATA ASSIGNMENT ---
 # Assign data based on the sidebar selection
+#if selected_sport == "Football":
+#    df_summary = football_summary
+#    df_detail = football_detail
+#    default_summary_teams = ["Dublin", "Kerry"]
+#    default_detail_teams = ["Dublin", "Kerry"] # Can be different
+#else:
+#    df_summary = hurling_summary
+#    df_detail = hurling_detail
+#    default_summary_teams = ["Limerick", "Kilkenny", "Cork", "Tipperary"]
+#    default_detail_teams = ["Limerick", "Kilkenny"] # Can be different
+
+
 if selected_sport == "Football":
-    df_summary = football_summary
-    df_detail = football_detail
+    df_summary = load_summary_data("data/🏐 GAA Elo ratings - Football.xlsx", county_col_name='Unnamed: 0')
+    
+    football_counties = df_summary['County'].unique()
+    df_detail = load_match_data("data/🏐 GAA Elo ratings - Football.xlsx", county_list=football_counties)
+    
     default_summary_teams = ["Dublin", "Kerry"]
-    default_detail_teams = ["Dublin", "Kerry"] # Can be different
+    default_detail_teams = ["Dublin", "Kerry"] 
 else:
-    df_summary = hurling_summary
-    df_detail = hurling_detail
+    df_summary = load_summary_data("data/⚾ GAA Elo ratings - Hurling.xlsx", county_col_name='Team')
+    
+    hurling_counties = df_summary['County'].unique()
+    df_detail = load_match_data("data/⚾ GAA Elo ratings - Hurling.xlsx", county_list=hurling_counties)
+    
     default_summary_teams = ["Limerick", "Kilkenny", "Cork", "Tipperary"]
-    default_detail_teams = ["Limerick", "Kilkenny"] # Can be different
+    default_detail_teams = ["Limerick", "Kilkenny"]
 
 # --- MAIN PAGE ---
 st.title(f"Intercounty {selected_sport} ELO Ratings")
